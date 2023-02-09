@@ -30,7 +30,7 @@ fn get_input(msg: &str, default: &str) -> Result<String> {
 }
 
 fn download_url(url: &str) -> Result<String> {
-    println!("Downloading '{url}'...");
+    println!("\nDownloading '{url}'...");
 
     let res = ureq::get(url).call()?;
     let filename = res
@@ -73,19 +73,20 @@ fn add_to_path(dir: &str) -> Result<()> {
     let (env, _) = hcku.create_subkey("Environment")?;
 
     let path: String = env.get_value("Path")?;
-    fs::write("path.backup.txt", &path)?;
-    println!("Created a backup file for Path at './path.backup.txt'.");
 
-    let mut path: Vec<&str> = path.split(";").filter(|x| !x.is_empty()).collect();
+    let mut split_path: Vec<&str> = path.split(";").filter(|x| !x.is_empty()).collect();
 
-    if path.contains(&dir) {
+    if split_path.contains(&dir) {
         println!("Directory '{dir}' already exists in Path, skipping...");
         return Ok(());
     }
     println!("Directory '{dir}' does not exist in Path, appending...");
 
-    path.push(dir);
-    let path = path.join(";");
+    fs::write("path.backup.txt", &path)?;
+    println!("Created a backup file for Path at './path.backup.txt'.");
+
+    split_path.push(dir);
+    let path = split_path.join(";");
 
     env.set_value("Path", &path)?;
 
