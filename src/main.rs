@@ -10,7 +10,7 @@ use ureq;
 use winreg::{enums::*, RegKey};
 use zip::ZipArchive;
 
-const DEFAULT_DIR: &str = "C:\\ffmpeg2";
+const DEFAULT_DIR: &str = "C:\\ffmpeg";
 const DOWNLOAD_URL: &str = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip";
 
 fn get_input(msg: &str, default: &str) -> Result<String> {
@@ -23,14 +23,14 @@ fn get_input(msg: &str, default: &str) -> Result<String> {
     input = input.trim().to_owned();
 
     if input.is_empty() {
-        return Ok(default.to_owned())
+        return Ok(default.to_owned());
     }
 
     Ok(input)
 }
 
 fn download_url(url: &str) -> Result<String> {
-    println!("Downloading '{url}...'");
+    println!("Downloading '{url}'...");
 
     let res = ureq::get(url).call()?;
     let filename = res
@@ -86,7 +86,8 @@ fn add_to_path(dir: &str) -> Result<()> {
 
     path.push(dir);
     let path = path.join(";");
-    // println!("{path}");
+
+    env.set_value("Path", &path)?;
 
     Ok(())
 }
@@ -115,10 +116,12 @@ fn move_files(from: &str, to: &str) -> Result<()> {
 }
 
 fn main() -> Result<()> {
-    let dest_dir = get_input(&format!("FFmpeg installation directory ({DEFAULT_DIR}): "), DEFAULT_DIR)?;
+    let dest_dir = get_input(
+        &format!("FFmpeg installation directory ({DEFAULT_DIR}): "),
+        DEFAULT_DIR,
+    )?;
 
-    let filename =
-        download_url(DOWNLOAD_URL)?;
+    let filename = download_url(DOWNLOAD_URL)?;
     let dirname = filename.strip_suffix(".zip").context("Not a zip file.")?;
 
     extract_zip(&filename)?;
