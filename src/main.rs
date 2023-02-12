@@ -129,8 +129,8 @@ fn main() -> Result<()> {
     add_to_path(&dest_dir)?;
     move_files(dirname, &dest_dir)?;
 
-    println!("\n✅ Finished!");
-    println!("✅ FFmpeg is now installed and ready to be used from the comfort of your terminal.");
+    println!("\n✅ Done!");
+    println!("✅ FFmpeg has been successfully installed, please restart your terminal for changes to take effect.");
 
     Ok(())
 }
