@@ -66,11 +66,21 @@ fn extract_zip(filename: &str) -> Result<()> {
     Ok(())
 }
 
+fn make_backup_script(path: &str) -> Result<()> {
+    let bat_contents = format!(r#"@echo off
+reg add "HKEY_CURRENT_USER\Environment" /v Path /t REG_EXPAND_SZ /d "{path}" /f
+echo Path user environment variable restored.
+pause"#);
+    fs::write("HKCU.Env.Path.backup.bat", bat_contents)?;
+    println!("Created a Path backup script at './HKCU.Env.Path.backup.bat'.");
+    Ok(())
+}
+
 fn add_to_path(dir: &str) -> Result<()> {
     println!("Appending '{dir}' to Path...");
 
-    let hcku = RegKey::predef(HKEY_CURRENT_USER);
-    let (env, _) = hcku.create_subkey("Environment")?;
+    let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+    let (env, _) = hkcu.create_subkey("Environment")?;
 
     let path: String = env.get_value("Path")?;
 
@@ -82,8 +92,7 @@ fn add_to_path(dir: &str) -> Result<()> {
     }
     println!("Directory '{dir}' does not exist in Path, appending...");
 
-    fs::write("path.backup.txt", &path)?;
-    println!("Created a backup file for Path at './path.backup.txt'.");
+    make_backup_script(&path)?;
 
     split_path.push(dir);
     let path = split_path.join(";");
