@@ -1,5 +1,5 @@
 use std::{
-    fs::{self, create_dir_all, remove_dir_all, remove_file, rename, File},
+    fs::{self, create_dir_all, remove_file, File},
     io::{copy, Write},
     path::Path,
 };
@@ -55,22 +55,52 @@ fn download_url(url: &str) -> Result<String> {
     Ok(filename)
 }
 
-fn extract_zip(filename: &str) -> Result<()> {
-    println!("Extracting '{filename}' to current directory...");
+fn extract_to(filename: &str, to: &str) -> Result<()> {
+    println!("Extracting files to {to}...");
+    create_dir_all(to)?;
 
     let file = File::open(filename)?;
     let mut archive = ZipArchive::new(file)?;
 
-    archive.extract("./")?;
+    let filenames: Vec<String> = archive
+        .file_names()
+        .filter(|name| name.ends_with(".exe"))
+        .map(|name| name.to_owned())
+        .collect();
+
+    let bar = ProgressBar::new(filenames.len() as u64);
+    bar.set_style(
+        ProgressStyle::with_template("{spinner:.green} {msg} ({pos}/{len})")
+            .unwrap()
+            .progress_chars("#>-"),
+    );
+
+    for filename in filenames {
+        bar.inc(1);
+        let mut file = archive.by_name(&filename)?;
+
+        let filename = file.enclosed_name().unwrap().file_name().unwrap();
+        let path = Path::new(to).join(filename);
+
+        let mut dest_file = File::create(&path)?;
+
+        bar.set_message(filename.to_str().unwrap().to_owned());
+        copy(&mut file, &mut dest_file)?;
+    }
+
+    bar.finish_with_message("done");
+
     remove_file(filename)?;
     Ok(())
 }
 
 fn make_backup_script(path: &str) -> Result<()> {
-    let bat_contents = format!(r#"@echo off
+    let bat_contents = format!(
+        r#"@echo off
 reg add "HKEY_CURRENT_USER\Environment" /v Path /t REG_EXPAND_SZ /d "{path}" /f
 echo Path user environment variable restored.
-pause"#);
+pause"#
+    );
     fs::write("HKCU.Env.Path.backup.bat", bat_contents)?;
     println!("Created a Path backup script at './HKCU.Env.Path.backup.bat'.");
     Ok(())
@@ -102,29 +132,6 @@ fn add_to_path(dir: &str) -> Result<()> {
     Ok(())
 }
 
-fn move_files(from: &str, to: &str) -> Result<()> {
-    println!("Moving files from '{from}/bin' to '{to}'...");
-    let to = Path::new(to);
-    create_dir_all(to)?;
-
-    let from = Path::new(from);
-    for file in fs::read_dir(from.join("bin"))? {
-        let file = file?;
-        let path = file.path();
-        rename(
-            &path,
-            to.join(
-                path.file_name()
-                    .context("Stumbled upon a strange file.")
-                    .unwrap(),
-            ),
-        )?;
-    }
-
-    remove_dir_all(from)?;
-    Ok(())
-}
-
 fn main() -> Result<()> {
     let dest_dir = get_input(
         &format!("FFmpeg installation directory ({DEFAULT_DIR}): "),
@@ -132,11 +139,8 @@ fn main() -> Result<()> {
     )?;
 
     let filename = download_url(DOWNLOAD_URL)?;
-    let dirname = filename.strip_suffix(".zip").context("Not a zip file.")?;
-
-    extract_zip(&filename)?;
+    extract_to(&filename, &dest_dir)?;
     add_to_path(&dest_dir)?;
-    move_files(dirname, &dest_dir)?;
 
     println!("\n✅ Done!");
     println!("✅ FFmpeg has been successfully installed, please restart your terminal for changes to take effect.");
