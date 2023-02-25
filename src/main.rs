@@ -107,8 +107,6 @@ pause"#
 }
 
 fn add_to_path(dir: &str) -> Result<()> {
-    println!("Appending '{dir}' to Path...");
-
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
     let (env, _) = hkcu.create_subkey("Environment")?;
 
@@ -117,14 +115,14 @@ fn add_to_path(dir: &str) -> Result<()> {
     let mut split_path: Vec<&str> = path.split(";").filter(|x| !x.is_empty()).collect();
 
     if split_path.contains(&dir) {
-        println!("Directory '{dir}' already exists in Path, skipping...");
+        println!("Directory '{dir}' already exists in Path.");
         return Ok(());
     }
-    println!("Directory '{dir}' does not exist in Path, appending...");
+    println!("Directory '{dir}' does not exist in Path, prepending...");
 
     make_backup_script(&path)?;
 
-    split_path.push(dir);
+    split_path.insert(0, dir);
     let path = split_path.join(";");
 
     env.set_value("Path", &path)?;
